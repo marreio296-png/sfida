@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAnonymously() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isAdmin() {
+      return signedInAnonymously()
+        && exists(/databases/$(database)/documents/settings/admin)
+        && get(/databases/$(database)/documents/settings/admin).data.uid == request.auth.uid;
+    }
+
+    function validProfile(profileId, profile) {
+      return profile.keys().hasAll(['id', 'name', 'photo', 'ownerUid'])
+        && profile.keys().hasOnly(['id', 'name', 'photo', 'ownerUid'])
+        && profile.id == profileId
+        && profile.name is string
+        && profile.name.size() > 0
+        && profile.name.size() <= 60
+        && profile.photo is string
+        && profile.photo.size() <= 300000
+        && (profile.photo == '' || profile.photo.matches('data:image/jpeg;base64,.*'))
+        && profile.ownerUid == request.auth.uid;
+    }
+
+    function ownsProfile(profileId) {
+      return exists(/databases/$(database)/documents/profiles/$(profileId))
+        && get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerUid == request.auth.uid;
+    }
+
+    function validPerson(personId, person) {
+      return person.keys().hasAll([
+          'id', 'name', 'profileId', 'ownerUid', 'hairColor', 'age', 'rating', 'palo'
+        ])
+        && person.keys().hasOnly([
+          'id', 'name', 'profileId', 'ownerUid', 'hairColor', 'age', 'rating', 'palo',
+          'shoeRating', 'glassesRating', 'finalRating'
+        ])
+        && person.id == personId
+        && person.name is string
+        && person.name.size() > 0
+        && person.name.size() <= 60
+        && person.profileId is string
+        && person.profileId.size() > 0
+        && person.profileId.size() <= 100
+        && person.ownerUid == request.auth.uid
+        && person.hairColor is string
+        && person.hairColor.size() <= 40
+        && person.age is string
+        && person.age.matches('^(|1[89]|[2-9][0-9]|1[01][0-9]|120)$')
+        && person.rating is number
+        && person.rating >= 0
+        && person.rating <= 5
+        && person.palo in ['Sì', 'No']
+        && (!person.keys().hasAny(['shoeRating'])
+          || (person.shoeRating is number && person.shoeRating >= 0.5 && person.shoeRating <= 5
+            && person.shoeRating % 0.5 == 0))
+        && (!person.keys().hasAny(['glassesRating'])
+          || (person.glassesRating is number && person.glassesRating >= 0.5 && person.glassesRating <= 5
+            && person.glassesRating % 0.5 == 0))
+        && (!person.keys().hasAny(['finalRating'])
+          || (person.finalRating is number && person.finalRating >= 0.5 && person.finalRating <= 5
+            && person.finalRating % 0.5 == 0))
+        && (ownsProfile(person.profileId) || isAdmin());
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedInAnonymously() && settingId == 'admin';
+      allow write: if false;
+    }
+
+    match /profiles/{profileId} {
+      allow read: if signedInAnonymously();
+      allow create: if signedInAnonymously()
+        && validProfile(profileId, request.resource.data);
+      allow update: if signedInAnonymously()
+        && resource.data.ownerUid == request.auth.uid
+        && validProfile(profileId, request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /people/{personId} {
+      allow read: if signedInAnonymously();
+      allow create: if signedInAnonymously()
+        && validPerson(personId, request.resource.data);
+      allow update: if signedInAnonymously()
+        && resource.data.ownerUid == request.auth.uid
+        && validPerson(personId, request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fff8e9" />
+    <title>La sfida della serata</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="heading">
+        <span class="eyebrow">La sfida della serata</span>
+        <h1>Com'è andata stasera?</h1>
+        <p>Raccogliete gli aneddoti della serata e tenete d'occhio la classifica: ogni approccio riuscito fa avanzare il cavallo.</p>
+        <p class="field-hint access-storage-hint">Le modifiche si aggiornano in tempo reale per tutto il gruppo.</p>
+        <a id="admin-dashboard-link" class="admin-dashboard-link" href="admin.html" hidden>Apri area amministratore</a>
+      </header>
+
+      <section id="access-panel" class="panel access-panel" aria-labelledby="access-title">
+        <div class="section-heading">
+          <div>
+            <span class="step">01 / ENTRA NEL CLUB</span>
+            <h2 id="access-title">Hai già un profilo?</h2>
+          </div>
+        </div>
+
+        <form id="access-form">
+          <fieldset class="access-options">
+            <legend>Scegli come continuare</legend>
+            <label class="access-choice">
+              <input type="radio" name="access-type" value="returning" required />
+              <span>Sì, ho già un profilo</span>
+            </label>
+            <label class="access-choice">
+              <input type="radio" name="access-type" value="new" required />
+              <span>No, creane uno</span>
+            </label>
+          </fieldset>
+          <p class="field-hint access-storage-hint">I profili e la classifica sono condivisi con tutto il gruppo.</p>
+          <div id="returning-fields" class="access-fields" hidden>
+            <label class="field" for="saved-profile">
+              <span>Seleziona il tuo profilo</span>
+              <select id="saved-profile" name="profileId"></select>
+            </label>
+            <button id="delete-profile" class="remove-button" type="button" disabled>Elimina il profilo selezionato</button>
+            <p class="field-hint">Solo l'amministratore può eliminare profili e approcci.</p>
+          </div>
+
+          <div id="new-profile-fields" class="access-fields" hidden>
+            <label class="field" for="profile-name">
+              <span>Il tuo nome <span class="required-mark" aria-hidden="true">*</span></span>
+              <input id="profile-name" name="profileName" type="text" autocomplete="name" maxlength="60" placeholder="Come ti chiami?" />
+            </label>
+            <label class="field" for="profile-photo">
+              <span>La tua foto <span class="optional-mark">(facoltativa)</span></span>
+              <input id="profile-photo" name="profilePhoto" type="file" accept="image/*" />
+            </label>
+            <p class="field-hint">La foto sarà visibile agli altri partecipanti.</p>
+          </div>
+
+          <p id="access-message" class="message" role="status" aria-live="polite"></p>
+          <button id="access-submit" class="primary-button" type="submit" disabled>Continua</button>
+        </form>
+      </section>
+
+      <div id="group-app" hidden>
+        <section class="panel profile-panel" aria-label="Profilo attivo">
+          <div id="active-profile" class="active-profile"></div>
+          <button id="switch-profile" class="remove-button" type="button">Cambia partecipante</button>
+        </section>
+
+        <dialog id="approach-dialog" class="panel entry-panel entry-dialog" aria-labelledby="entry-title">
+          <div class="section-heading">
+            <div>
+              <span id="approach-step" class="step">AGGIUNGI UN APPROCCIO</span>
+              <h2 id="entry-title">Com'è andato?</h2>
+            </div>
+            <button id="close-approach-form" class="remove-button" type="button">Chiudi</button>
+          </div>
+
+          <form id="person-form">
+            <div class="form-grid">
+              <label class="field field-wide" for="person-name">
+                <span>Nome  <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="person-name" name="name" type="text" autocomplete="off" maxlength="60" placeholder="Es. Giulia" required />
+              </label>
+
+              <label class="field" for="person-age">
+                <span>Età <span class="optional-mark"></span></span>
+                <input id="person-age" name="age" type="number" min="18" max="120" inputmode="numeric" placeholder="18+" />
+              </label>
+
+              <label class="field" for="hair-color">
+                <span>Colore dei capelli <span class="optional-mark"></span></span>
+                <input id="hair-color" name="hairColor" type="text" maxlength="40" placeholder="Es. castani" />
+              </label>
+
+              <fieldset class="field star-rating-field">
+                <legend>tette <span class="optional-mark"></span></legend>
+                <div class="star-rating" data-rating-name="shoeRating" data-rating-label="Valutazione delle scarpe"></div>
+              </fieldset>
+
+              <fieldset class="field star-rating-field">
+                <legend>culo <span class="optional-mark"></span></legend>
+                <div class="star-rating" data-rating-name="glassesRating" data-rating-label="Valutazione degli occhiali"></div>
+              </fieldset>
+
+              <fieldset class="field field-wide star-rating-field">
+                <legend>voto generale <span class="optional-mark"></span></legend>
+                <div class="star-rating" data-rating-name="finalRating" data-rating-label="Impressione generale"></div>
+              </fieldset>
+
+              <fieldset class="field field-wide outcome-field">
+                <legend>Palo?</legend>
+                <input id="person-palo" name="palo" type="hidden" value="" />
+                <div class="outcome-buttons" role="group" aria-label="Esito dell'approccio">
+                  <button class="outcome-button" type="button" data-outcome="Sì" aria-pressed="false">Sì, è andata male</button>
+                  <button class="outcome-button" type="button" data-outcome="No" aria-pressed="false">No, è andata bene</button>
+                </div>
+              </fieldset>
+
+            </div>
+
+            <p id="form-message" class="message" role="status" aria-live="polite"></p>
+            <button class="primary-button" type="submit">Aggiungi al diario <span aria-hidden="true">+</span></button>
+          </form>
+        </dialog>
+
+        <section id="race-section" class="panel race-panel" aria-labelledby="race-title" hidden>
+          <div class="section-heading">
+            <div>
+              <span class="step">02 / CLASSIFICA</span>
+              <h2 id="race-title">La corsa della serata</h2>
+            </div>
+            <button id="open-approach-form" class="primary-button" type="button">Aggiungi approccio <span aria-hidden="true">+</span></button>
+          </div>
+          <div class="leaderboard-legend" aria-hidden="true">
+            <span><i class="leaderboard-legend-swatch is-success"></i>Riusciti</span>
+            <span><i class="leaderboard-legend-swatch is-rejection"></i>Pali</span>
+          </div>
+          <div id="leaderboard-chart" class="leaderboard-chart" role="list" aria-label="Istogramma dei primi tre partecipanti: approcci riusciti e pali"></div>
+          <button id="show-full-leaderboard" class="secondary-button leaderboard-full-button" type="button" aria-haspopup="dialog" hidden>Vedi tutto</button>
+          <dialog id="leaderboard-dialog" class="panel entry-dialog leaderboard-dialog" aria-labelledby="leaderboard-dialog-title">
+            <div class="section-heading">
+              <div>
+                <span class="step">CLASSIFICA COMPLETA</span>
+                <h2 id="leaderboard-dialog-title">Tutti i partecipanti</h2>
+              </div>
+              <button id="close-leaderboard-dialog" class="remove-button" type="button">Chiudi</button>
+            </div>
+            <div class="leaderboard-legend" aria-hidden="true">
+              <span><i class="leaderboard-legend-swatch is-success"></i>Riusciti</span>
+              <span><i class="leaderboard-legend-swatch is-rejection"></i>Pali</span>
+            </div>
+            <div class="leaderboard-chart-scroll">
+              <div id="full-leaderboard-chart" class="leaderboard-chart is-expanded" role="list" aria-label="Istogramma completo: approcci riusciti e pali"></div>
+            </div>
+          </dialog>
+          <div id="race-track" class="race-track" aria-label="Pista della gara"></div>
+          <p id="race-result" class="race-result" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel participants-panel" aria-labelledby="participants-title">
+          <div class="section-heading participants-heading">
+            <div>
+              <span class="step">03 / IL TACCUINO</span>
+              <h2 id="participants-title">Diario della serata</h2>
+            </div>
+            <span id="participant-count" class="count-badge">0 approcci</span>
+          </div>
+          <p id="empty-state" class="empty-state">Ancora nessun approccio registrato.</p>
+          <ul id="participant-list" class="participant-list" aria-label="Approcci registrati nella serata"></ul>
+        </section>
+      </div>
+    </main>
+    <script src="firebase-config.js"></script>
+    <script src="firebase-admin.js"></script>
+    <script src="script.js" defer></script>
+  </body>
+</html>

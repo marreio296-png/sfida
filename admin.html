@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fff8e9" />
+    <title>Amministrazione - La sfida della serata</title>
+    <link rel="stylesheet" href="admin.css" />
+  </head>
+  <body>
+    <main class="admin-page">
+      <header class="admin-header">
+        <div>
+          <a class="back-link" href="./">← Torna alla sfida</a>
+          <p class="eyebrow">Per chi organizza</p>
+          <h1>Gestione della sfida</h1>
+          <p class="intro">Da qui puoi controllare i profili e rimuovere gli approcci da cancellare.</p>
+        </div>
+        <button id="refresh-button" class="secondary-button" type="button" disabled>Aggiorna elenco</button>
+      </header>
+
+      <p id="admin-status" class="status" role="status" aria-live="polite">Verifica dell'identità Firebase…</p>
+      <section id="admin-content" hidden>
+        <div class="summary">
+          <article class="summary-card">
+            <span>Profili</span>
+            <strong id="profile-count">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>Approcci</span>
+            <strong id="people-count">0</strong>
+          </article>
+          <article class="summary-card admin-id-card">
+            <span>Amministratore</span>
+            <code id="admin-uid"></code>
+          </article>
+        </div>
+
+        <section class="data-section" aria-labelledby="profiles-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Partecipanti</p>
+              <h2 id="profiles-title">Profili</h2>
+            </div>
+          </div>
+          <div id="profiles-list" class="records" aria-live="polite"></div>
+        </section>
+
+        <section class="data-section" aria-labelledby="people-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Diario della serata</p>
+              <h2 id="people-title">Approcci registrati</h2>
+            </div>
+          </div>
+          <div id="people-list" class="records" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="firebase-config.js"></script>
+    <script src="firebase-admin.js"></script>
+    <script type="module" src="admin.js"></script>
+  </body>
+</html>
