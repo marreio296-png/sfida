@@ -33,7 +33,7 @@ Il workflow `.github/workflows/deploy-sfida-pages.yml` pubblica il sito al push 
 4. Pubblica i file aggiornati sul branch `main` e verifica che il workflow GitHub Actions termini correttamente.
 5. Prova creazione profilo, foto, inserimento e modifica di un approccio, accesso admin, cancellazioni e sincronizzazione da un altro dispositivo.
 
-La pagina `admin.html` richiede l'accesso Firebase dell'amministratore prima di mostrare i dati e le azioni di eliminazione.
+La pagina `admin.html` richiede l'accesso Firebase dell'amministratore prima di mostrare i dati e le azioni di eliminazione. Oltre alla cancellazione dei singoli record, offre comandi separati per eliminare tutti gli approcci o tutti i profili e gli approcci Firestore; entrambe le azioni chiedono conferma e non eliminano gli account Firebase Authentication.
 
 ## Server Node locale
 

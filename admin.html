@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3efe6" />
     <title>Amministrazione - La sfida della serata</title>
-    <link rel="stylesheet" href="admin.css?v=admin-email-reset" />
+    <link rel="stylesheet" href="admin.css?v=admin-delete-all" />
   </head>
   <body>
     <main class="admin-page">
@@ -54,6 +54,22 @@
           </article>
         </div>
 
+        <section class="bulk-actions" aria-labelledby="bulk-actions-title">
+          <div>
+            <p class="eyebrow">Azioni irreversibili</p>
+            <h2 id="bulk-actions-title">Svuota i dati</h2>
+            <p class="bulk-actions-copy">Le eliminazioni non si possono annullare. “Cancella TUTTO” rimuove profili e approcci Firestore, non gli account Firebase.</p>
+          </div>
+          <div class="bulk-actions-buttons">
+            <button id="delete-all-people" class="delete-button" type="button" disabled>
+              Cancella tutti gli approcci
+            </button>
+            <button id="delete-all-data" class="delete-all-button" type="button" disabled>
+              Cancella TUTTO
+            </button>
+          </div>
+        </section>
+
         <section class="data-section" aria-labelledby="profiles-title">
           <div class="section-heading">
             <div>
@@ -77,7 +93,7 @@
     </main>
 
     <script src="firebase-config.js"></script>
-    <script src="firebase-admin.js?v=admin-email-reset"></script>
-    <script type="module" src="admin.js?v=admin-email-reset"></script>
+    <script src="firebase-admin.js?v=admin-delete-all"></script>
+    <script type="module" src="admin.js?v=admin-delete-all"></script>
   </body>
 </html>

@@ -9,6 +9,8 @@ const refreshButton = document.querySelector("#refresh-button");
 const signOutButton = document.querySelector("#admin-signout-button");
 const profileCount = document.querySelector("#profile-count");
 const peopleCount = document.querySelector("#people-count");
+const deleteAllPeopleButton = document.querySelector("#delete-all-people");
+const deleteAllDataButton = document.querySelector("#delete-all-data");
 const adminUidElement = document.querySelector("#admin-uid");
 const profilesList = document.querySelector("#profiles-list");
 const peopleList = document.querySelector("#people-list");
@@ -80,6 +82,8 @@ function makeRecord({ title, meta, details, onDelete, deleteLabel }) {
 function render() {
   profileCount.textContent = String(profiles.length);
   peopleCount.textContent = String(people.length);
+  deleteAllPeopleButton.disabled = requestPending || people.length === 0;
+  deleteAllDataButton.disabled = requestPending || (profiles.length === 0 && people.length === 0);
 
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
   profilesList.replaceChildren();
@@ -188,6 +192,63 @@ async function deletePerson(person) {
   } finally {
     requestPending = false;
     refreshButton.disabled = false;
+    render();
+  }
+}
+
+async function deleteCollection(collectionName) {
+  const snapshots = await sdk.getDocs(sdk.collection(database, collectionName));
+  for (let index = 0; index < snapshots.docs.length; index += 450) {
+    const batch = sdk.writeBatch(database);
+    snapshots.docs.slice(index, index + 450).forEach((snapshot) => batch.delete(snapshot.ref));
+    await batch.commit();
+  }
+  return snapshots.size;
+}
+
+async function deleteAllPeople() {
+  if (requestPending || people.length === 0) return;
+  if (!window.confirm(`Eliminare tutti i ${people.length} approcci? I profili resteranno salvati.`)) return;
+
+  requestPending = true;
+  refreshButton.disabled = true;
+  signOutButton.disabled = true;
+  render();
+  setStatus("Eliminazione di tutti gli approcci…");
+  try {
+    requireDatabase();
+    const deletedCount = await deleteCollection("people");
+    setStatus(`Eliminati ${deletedCount} approcci. I profili sono rimasti invariati.`, "success");
+  } catch (error) {
+    setStatus(`${error instanceof Error ? error.message : "Errore durante l'eliminazione."} L'operazione potrebbe essere parziale; aggiorna i dati per verificare.`, "error");
+  } finally {
+    requestPending = false;
+    refreshButton.disabled = false;
+    signOutButton.disabled = false;
+    render();
+  }
+}
+
+async function deleteAllData() {
+  if (requestPending || (profiles.length === 0 && people.length === 0)) return;
+  if (!window.confirm(`Eliminare TUTTI i dati? Verranno cancellati ${people.length} approcci e ${profiles.length} profili. L'operazione non si può annullare.`)) return;
+
+  requestPending = true;
+  refreshButton.disabled = true;
+  signOutButton.disabled = true;
+  render();
+  setStatus("Eliminazione di tutti gli approcci e profili…");
+  try {
+    requireDatabase();
+    const deletedPeople = await deleteCollection("people");
+    const deletedProfiles = await deleteCollection("profiles");
+    setStatus(`Cancellazione completata: ${deletedPeople} approcci e ${deletedProfiles} profili eliminati.`, "success");
+  } catch (error) {
+    setStatus(`${error instanceof Error ? error.message : "Errore durante la cancellazione."} L'operazione potrebbe essere parziale; aggiorna i dati per verificare.`, "error");
+  } finally {
+    requestPending = false;
+    refreshButton.disabled = false;
+    signOutButton.disabled = false;
     render();
   }
 }
@@ -337,6 +398,9 @@ refreshButton.addEventListener("click", async () => {
     refreshButton.disabled = false;
   }
 });
+
+deleteAllPeopleButton.addEventListener("click", () => void deleteAllPeople());
+deleteAllDataButton.addEventListener("click", () => void deleteAllData());
 
 signOutButton.addEventListener("click", async () => {
   signOutButton.disabled = true;
