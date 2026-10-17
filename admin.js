@@ -1,5 +1,7 @@
 const statusElement = document.querySelector("#admin-status");
 const contentElement = document.querySelector("#admin-content");
+const loginForm = document.querySelector("#admin-login-form");
+const passwordInput = document.querySelector("#admin-password");
 const refreshButton = document.querySelector("#refresh-button");
 const profileCount = document.querySelector("#profile-count");
 const peopleCount = document.querySelector("#people-count");
@@ -117,7 +119,7 @@ function render() {
 }
 
 function requireAdmin() {
-  if (!firebaseAdminUid || firebaseAuth?.currentUser?.uid !== firebaseAdminUid) {
+  if (!window.isFirebaseAdminUser?.(firebaseAuth?.currentUser)) {
     throw new Error("Accesso negato: questa pagina è riservata all'amministratore.");
   }
 }
@@ -184,6 +186,35 @@ async function refreshData() {
   render();
 }
 
+async function showAdminArea() {
+  if (!window.isFirebaseAdminUser?.(firebaseAuth?.currentUser)) {
+    throw new Error("Password non valida.");
+  }
+  firebaseAdminUid = firebaseAuth.currentUser.uid;
+  adminUidElement.textContent = "Emanuele";
+  loginForm.hidden = true;
+  contentElement.hidden = false;
+  refreshButton.disabled = false;
+  await refreshData();
+  profilesUnsubscribe = sdk.onSnapshot(
+    sdk.collection(database, "profiles"),
+    (snapshot) => {
+      profiles = snapshot.docs.map((item) => ({ ...item.data(), id: item.id }));
+      render();
+    },
+    (error) => setStatus(`Non è stato possibile aggiornare i profili: ${error.message}`, "error"),
+  );
+  peopleUnsubscribe = sdk.onSnapshot(
+    sdk.collection(database, "people"),
+    (snapshot) => {
+      people = snapshot.docs.map((item) => ({ ...item.data(), id: item.id }));
+      render();
+    },
+    (error) => setStatus(`Non è stato possibile aggiornare gli approcci: ${error.message}`, "error"),
+  );
+  setStatus("Accesso amministratore verificato. Dati aggiornati in tempo reale.", "success");
+}
+
 async function initializeAdmin() {
   try {
     if (!window.firebaseConfig?.apiKey || !window.firebaseConfig?.projectId) {
@@ -200,52 +231,39 @@ async function initializeAdmin() {
     firebaseAuth = authSdk.getAuth(app);
     database = firestoreSdk.getFirestore(app);
     await firebaseAuth.authStateReady();
-    if (!firebaseAuth.currentUser) await authSdk.signInAnonymously(firebaseAuth);
-
-    const identity = await firebaseAuth.currentUser.getIdTokenResult();
-    if (identity.signInProvider !== "anonymous") {
-      throw new Error("L'area amministratore richiede l'autenticazione anonima Firebase.");
+    if (window.isFirebaseAdminUser?.(firebaseAuth.currentUser)) {
+      await showAdminArea();
+    } else {
+      loginForm.hidden = false;
+      setStatus("Inserisci la password per accedere all'area admin.");
     }
-    if (typeof window.readFirebaseAdminUid !== "function") {
-      throw new Error("Impossibile verificare l'amministratore Firebase.");
-    }
-    firebaseAdminUid = await window.readFirebaseAdminUid(sdk, database);
-    if (!firebaseAdminUid) {
-      throw new Error(
-        `Amministratore non configurato. Crea settings/admin in Firestore con il campo uid impostato su: ${firebaseAuth.currentUser.uid}`,
-      );
-    }
-    if (firebaseAuth.currentUser.uid !== firebaseAdminUid) {
-      throw new Error("Accesso negato: questa pagina è riservata all'amministratore.");
-    }
-
-    adminUidElement.textContent = firebaseAuth.currentUser.uid;
-    contentElement.hidden = false;
-    refreshButton.disabled = false;
-    await refreshData();
-    profilesUnsubscribe = sdk.onSnapshot(
-      sdk.collection(database, "profiles"),
-      (snapshot) => {
-        profiles = snapshot.docs.map((item) => ({ ...item.data(), id: item.id }));
-        render();
-      },
-      (error) => setStatus(`Non è stato possibile aggiornare i profili: ${error.message}`, "error"),
-    );
-    peopleUnsubscribe = sdk.onSnapshot(
-      sdk.collection(database, "people"),
-      (snapshot) => {
-        people = snapshot.docs.map((item) => ({ ...item.data(), id: item.id }));
-        render();
-      },
-      (error) => setStatus(`Non è stato possibile aggiornare gli approcci: ${error.message}`, "error"),
-    );
-    setStatus("Accesso amministratore verificato. Dati aggiornati in tempo reale.", "success");
   } catch (error) {
     contentElement.hidden = true;
     refreshButton.disabled = true;
+    loginForm.hidden = false;
     setStatus(error instanceof Error ? error.message : "Impossibile inizializzare l'area admin.", "error");
   }
 }
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  refreshButton.disabled = true;
+  setStatus("Verifica password…");
+  try {
+    await sdk.signInWithEmailAndPassword(
+      firebaseAuth,
+      window.firebaseAdminEmail,
+      passwordInput.value,
+    );
+    passwordInput.value = "";
+    await showAdminArea();
+  } catch (error) {
+    setStatus(error?.code === "auth/operation-not-allowed"
+      ? "L'accesso con password non è ancora attivo in Firebase."
+      : "Password non valida o accesso non disponibile.", "error");
+    refreshButton.disabled = true;
+  }
+});
 
 refreshButton.addEventListener("click", async () => {
   refreshButton.disabled = true;

@@ -56,7 +56,6 @@ let firebaseAdminUid = "";
 let firebaseProfilesUnsubscribe = null;
 let firebaseGroupUnsubscribe = null;
 let editingPersonId = "";
-const inviteToken = new URLSearchParams(window.location.search).get("invite") || "";
 
 function hasFirebaseConfig() {
   const config = window.firebaseConfig;
@@ -67,9 +66,8 @@ function hasFirebaseConfig() {
 }
 
 function isFirebaseAdmin() {
-  return Boolean(firebaseAuth?.currentUser?.uid &&
-    firebaseAdminUid &&
-    firebaseAuth.currentUser.uid === firebaseAdminUid);
+  return Boolean(firebaseAuth?.currentUser &&
+    window.isFirebaseAdminUser?.(firebaseAuth.currentUser));
 }
 
 function canDeleteRecords() {
@@ -98,13 +96,10 @@ async function initializeFirebase() {
     await authSdk.signInAnonymously(firebaseAuth);
   }
   const identity = await firebaseAuth.currentUser.getIdTokenResult();
-  if (identity.signInProvider !== "anonymous") {
+  if (identity.signInProvider !== "anonymous" && !isFirebaseAdmin()) {
     throw new Error("La sfida richiede l'autenticazione anonima Firebase.");
   }
-  if (typeof window.readFirebaseAdminUid !== "function") {
-    throw new Error("Impossibile leggere l'amministratore Firebase.");
-  }
-  firebaseAdminUid = await window.readFirebaseAdminUid(firebaseSdk, firebaseDatabase);
+  firebaseAdminUid = isFirebaseAdmin() ? firebaseAuth.currentUser.uid : "";
 }
 
 function loadProfiles() {
@@ -147,13 +142,10 @@ async function readRemoteJson(url) {
   const response = await fetch(url, {
     headers: {
       "Accept": "application/json",
-      "X-Invite-Token": inviteToken,
     },
   });
   if (!response.ok) {
-    throw new Error(response.status === 403
-      ? "Link d'invito non valido. Chiedi al proprietario un link aggiornato."
-      : "Impossibile contattare il backend.");
+    throw new Error("Impossibile contattare il backend.");
   }
   return response.json();
 }
@@ -171,15 +163,12 @@ async function saveRemoteProfile(profile) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Invite-Token": inviteToken,
     },
     body: JSON.stringify({ name: profile.name, photo: profile.photo }),
   });
   if (!response.ok) {
-    throw new Error(response.status === 403
-      ? "Link d'invito non valido. Chiedi al proprietario un link aggiornato."
-      : response.status === 413
-        ? "La richiesta supera la dimensione massima consentita."
+    throw new Error(response.status === 413
+      ? "La richiesta supera la dimensione massima consentita."
       : "Non è stato possibile salvare il profilo sul backend.");
   }
   return response.json();
@@ -211,15 +200,12 @@ async function deleteRemoteProfile(profileId) {
     method: "DELETE",
     headers: {
       "Accept": "application/json",
-      "X-Invite-Token": inviteToken,
     },
   });
   if (!response.ok) {
     throw new Error(response.status === 501
       ? "L'eliminazione richiede Firebase configurato e le regole amministratore."
-      : response.status === 403
-        ? "Link d'invito non valido. Chiedi al proprietario un link aggiornato."
-        : response.status === 404
+      : response.status === 404
         ? "Il profilo è già stato eliminato. Aggiorna la pagina."
         : "Non è stato possibile eliminare il profilo dal backend.");
   }
@@ -363,16 +349,13 @@ async function persistGroupToServer(sharedState, deletedIds) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Invite-Token": inviteToken,
     },
     body: JSON.stringify({ ...sharedState, deleteIds: deletedIds }),
   });
   if (!response.ok) {
     const errorMessage = response.status === 501
       ? "L'eliminazione richiede Firebase configurato e le regole amministratore."
-      : response.status === 403
-        ? "Link d'invito non valido. Chiedi al proprietario un link aggiornato."
-        : response.status === 409
+      : response.status === 409
           ? "Il gruppo è cambiato da un altro dispositivo. Aggiorna la pagina."
           : response.status === 413
             ? "La richiesta supera la dimensione massima consentita."

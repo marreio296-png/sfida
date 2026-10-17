@@ -2,12 +2,11 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { randomBytes, randomUUID, timingSafeEqual } = require("crypto");
+const { randomUUID } = require("crypto");
 
 const rootDir = __dirname;
 const dataDir = path.join(rootDir, "data");
 const storePath = path.join(dataDir, "store.json");
-const inviteTokenPath = path.join(dataDir, "invite-token.txt");
 const maxBodyBytes = 1024 * 1024;
 const maxGroupSize = 2000;
 
@@ -17,22 +16,6 @@ function ensureStore() {
     fs.writeFileSync(storePath, JSON.stringify({ profiles: [], group: { people: [], progress: {} } }, null, 2));
   }
 }
-
-function getInviteToken() {
-  fs.mkdirSync(dataDir, { recursive: true });
-  if (!fs.existsSync(inviteTokenPath)) {
-    fs.writeFileSync(inviteTokenPath, randomBytes(32).toString("hex"), { flag: "wx" });
-  }
-  return fs.readFileSync(inviteTokenPath, "utf8").trim();
-}
-
-function tokensMatch(candidate, expected) {
-  const candidateBuffer = Buffer.from(candidate || "");
-  const expectedBuffer = Buffer.from(expected);
-  return candidateBuffer.length === expectedBuffer.length && timingSafeEqual(candidateBuffer, expectedBuffer);
-}
-
-const inviteToken = getInviteToken();
 
 function readStore() {
   ensureStore();
@@ -201,11 +184,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (pathname.startsWith("/api/") && !tokensMatch(req.headers["x-invite-token"], inviteToken)) {
-    sendJson(res, 403, { error: "Link d'invito non valido." });
-    return;
-  }
-
   if (pathname === "/api/profiles") {
     if (req.method === "GET") {
       sendJson(res, 200, readStore().profiles);
@@ -320,5 +298,4 @@ server.listen(port, host, () => {
       }
     }
   }
-  console.log(`Token API legacy salvato in ${inviteTokenPath}; non condividerlo.`);
 });

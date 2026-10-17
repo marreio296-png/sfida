@@ -7,9 +7,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedInAnonymously()
-        && exists(/databases/$(database)/documents/settings/admin)
-        && get(/databases/$(database)/documents/settings/admin).data.uid == request.auth.uid;
+      return request.auth != null
+        && request.auth.token.email == 'emanuele.admin@sfida-554ff.firebaseapp.com'
+        && request.auth.token.firebase.sign_in_provider == 'password';
     }
 
     function validProfile(profileId, profile) {
@@ -67,26 +67,25 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read: if signedInAnonymously() && settingId == 'admin';
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /profiles/{profileId} {
-      allow read: if signedInAnonymously();
-      allow create: if signedInAnonymously()
+      allow read: if signedInAnonymously() || isAdmin();
+      allow create: if (signedInAnonymously() || isAdmin())
         && validProfile(profileId, request.resource.data);
-      allow update: if signedInAnonymously()
-        && resource.data.ownerUid == request.auth.uid
+      allow update: if (signedInAnonymously() || isAdmin())
+        && (resource.data.ownerUid == request.auth.uid || isAdmin())
         && validProfile(profileId, request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /people/{personId} {
-      allow read: if signedInAnonymously();
-      allow create: if signedInAnonymously()
+      allow read: if signedInAnonymously() || isAdmin();
+      allow create: if (signedInAnonymously() || isAdmin())
         && validPerson(personId, request.resource.data);
-      allow update: if signedInAnonymously()
-        && resource.data.ownerUid == request.auth.uid
+      allow update: if (signedInAnonymously() || isAdmin())
+        && (resource.data.ownerUid == request.auth.uid || isAdmin())
         && validPerson(personId, request.resource.data);
       allow delete: if isAdmin();
     }

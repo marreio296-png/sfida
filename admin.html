@@ -20,6 +20,11 @@
       </header>
 
       <p id="admin-status" class="status" role="status" aria-live="polite">Verifica dell'identità Firebase…</p>
+      <form id="admin-login-form" class="admin-login" hidden>
+        <label for="admin-password">Password amministratore</label>
+        <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+        <button class="secondary-button" type="submit">Entra</button>
+      </form>
       <section id="admin-content" hidden>
         <div class="summary">
           <article class="summary-card">
