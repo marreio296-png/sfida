@@ -1,16 +1,98 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        request.auth.token.email == 'emanuele.admin@sfida-554ff.firebaseapp.com' &&
+        request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function ownsProfile(profileId) {
+      let profilePath = /databases/$(database)/documents/profiles/$(profileId);
+      return signedIn() &&
+        exists(profilePath) &&
+        get(profilePath).data.ownerUid == request.auth.uid;
+    }
+
+    function validProfile(profileId) {
+      return request.resource.data.keys().hasOnly(['id', 'name', 'photo', 'ownerUid']) &&
+        request.resource.data.keys().hasAll(['id', 'name', 'photo', 'ownerUid']) &&
+        request.resource.data.id == profileId &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 60 &&
+        request.resource.data.photo is string &&
+        request.resource.data.photo.size() <= 900000 &&
+        request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function validRating(data, field) {
+      let rating = data.get(field, null);
+      return rating == null ||
+        (rating is number && rating >= 0.5 &&
+          rating <= 5 && rating * 2 % 1 == 0);
+    }
+
+    function validOptionalList(data, field, maxSize) {
+      let values = data.get(field, []);
+      return values is list && values.size() <= maxSize;
+    }
+
+    function validPerson(personId) {
+      return request.resource.data.keys().hasOnly([
+          'id', 'name', 'profileId', 'ownerUid', 'hairColor', 'age',
+          'rating', 'palo', 'shoeRating', 'glassesRating', 'finalRating',
+          'evaluations', 'details'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'id', 'name', 'profileId', 'ownerUid', 'hairColor', 'age', 'rating', 'palo'
+        ]) &&
+        request.resource.data.id == personId &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 60 &&
+        request.resource.data.profileId is string &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.hairColor is string &&
+        request.resource.data.hairColor.size() <= 40 &&
+        request.resource.data.age is string &&
+        request.resource.data.age.size() <= 3 &&
+        request.resource.data.rating == 0 &&
+        request.resource.data.palo in ['No', 'Sì'] &&
+        validRating(request.resource.data, 'shoeRating') &&
+        validRating(request.resource.data, 'glassesRating') &&
+        validRating(request.resource.data, 'finalRating') &&
+        validOptionalList(request.resource.data, 'evaluations', 30) &&
+        validOptionalList(request.resource.data, 'details', 30) &&
+        (ownsProfile(request.resource.data.profileId) || isAdmin());
+    }
+
     match /settings/{settingId} {
       allow read, write: if false;
     }
 
     match /profiles/{profileId} {
-      allow read, write: if true;
+      allow read: if signedIn();
+      allow create: if signedIn() && validProfile(profileId);
+      allow update: if signedIn() &&
+        resource.data.ownerUid == request.auth.uid &&
+        validProfile(profileId);
+      allow delete: if isAdmin();
     }
 
     match /people/{personId} {
-      allow read, write: if true;
+      allow read: if signedIn();
+      allow create: if signedIn() && validPerson(personId);
+      allow update: if signedIn() &&
+        resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.profileId == resource.data.profileId &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        validPerson(personId);
+      allow delete: if isAdmin();
     }
   }
 }

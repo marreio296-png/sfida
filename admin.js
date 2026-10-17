@@ -1,18 +1,29 @@
 const statusElement = document.querySelector("#admin-status");
 const contentElement = document.querySelector("#admin-content");
+const loginForm = document.querySelector("#admin-login-form");
+const passwordInput = document.querySelector("#admin-password");
+const loginButton = document.querySelector("#admin-login-button");
+const passwordToggle = document.querySelector("#toggle-password");
 const refreshButton = document.querySelector("#refresh-button");
+const signOutButton = document.querySelector("#admin-signout-button");
 const profileCount = document.querySelector("#profile-count");
 const peopleCount = document.querySelector("#people-count");
+const adminUidElement = document.querySelector("#admin-uid");
 const profilesList = document.querySelector("#profiles-list");
 const peopleList = document.querySelector("#people-list");
 
 let sdk;
+let firebaseAuth;
 let database;
 let profiles = [];
 let people = [];
 let profilesUnsubscribe;
 let peopleUnsubscribe;
 let requestPending = false;
+
+function isAdminUser(user) {
+  return Boolean(window.isFirebaseAdminUser?.(user));
+}
 
 function setStatus(message, kind = "") {
   statusElement.textContent = message;
@@ -117,6 +128,16 @@ function requireDatabase() {
   if (!database) {
     throw new Error("Firestore non è inizializzato.");
   }
+  if (!isAdminUser(firebaseAuth?.currentUser)) {
+    throw new Error("Accesso non autorizzato.");
+  }
+}
+
+function stopAdminListeners() {
+  profilesUnsubscribe?.();
+  peopleUnsubscribe?.();
+  profilesUnsubscribe = undefined;
+  peopleUnsubscribe = undefined;
 }
 
 async function deleteProfile(profile) {
@@ -182,9 +203,16 @@ async function refreshData() {
 }
 
 async function showAdminArea() {
+  if (!isAdminUser(firebaseAuth.currentUser)) {
+    throw new Error("Accesso riservato all'amministratore.");
+  }
+  await refreshData();
+  loginForm.hidden = true;
   contentElement.hidden = false;
   refreshButton.disabled = false;
-  await refreshData();
+  signOutButton.hidden = false;
+  adminUidElement.textContent = "Emanuele";
+  stopAdminListeners();
   profilesUnsubscribe = sdk.onSnapshot(
     sdk.collection(database, "profiles"),
     (snapshot) => {
@@ -201,29 +229,80 @@ async function showAdminArea() {
     },
     (error) => setStatus(`Non è stato possibile aggiornare gli approcci: ${error.message}`, "error"),
   );
-  setStatus("Dati aggiornati. Le operazioni su questo database non sono protette da login.", "error");
+  setStatus("Accesso amministratore verificato. Dati aggiornati in tempo reale.", "success");
 }
 
 async function initializeAdmin() {
   try {
-    if (!window.firebaseConfig?.apiKey || !window.firebaseConfig?.projectId) {
+    if (!window.firebaseConfig?.apiKey || !window.firebaseConfig?.projectId ||
+      !window.firebaseAdminEmail) {
       throw new Error("Configurazione Firebase mancante in firebase-config.js.");
     }
-    setStatus("Connessione a Firestore…");
-    const [appSdk, firestoreSdk] = await Promise.all([
+    setStatus("Connessione a Firebase…");
+    const [appSdk, authSdk, firestoreSdk] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
       import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
     ]);
-    sdk = firestoreSdk;
+    sdk = { ...authSdk, ...firestoreSdk };
     const app = appSdk.initializeApp(window.firebaseConfig);
+    firebaseAuth = authSdk.getAuth(app);
     database = firestoreSdk.getFirestore(app);
-    await showAdminArea();
+    await firebaseAuth.authStateReady();
+    if (isAdminUser(firebaseAuth.currentUser)) {
+      await showAdminArea();
+    } else {
+      loginForm.hidden = false;
+      setStatus("Inserisci la password amministratore di Emanuele.");
+      passwordInput.focus();
+    }
   } catch (error) {
     contentElement.hidden = true;
     refreshButton.disabled = true;
+    loginForm.hidden = !firebaseAuth;
+    loginButton.disabled = !firebaseAuth;
+    signOutButton.hidden = !isAdminUser(firebaseAuth?.currentUser);
     setStatus(error instanceof Error ? error.message : "Impossibile inizializzare l'area admin.", "error");
   }
 }
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!firebaseAuth || !sdk) {
+    setStatus("Firebase non è pronto. Ricarica la pagina.", "error");
+    return;
+  }
+  loginButton.disabled = true;
+  setStatus("Verifica della password…");
+  try {
+    await sdk.signInWithEmailAndPassword(
+      firebaseAuth,
+      window.firebaseAdminEmail,
+      passwordInput.value,
+    );
+    passwordInput.value = "";
+    await showAdminArea();
+  } catch (error) {
+    setStatus(error?.code === "auth/operation-not-allowed"
+      ? "L'accesso con password non è abilitato in Firebase."
+      : error?.code === "auth/network-request-failed"
+        ? "Firebase non è raggiungibile. Controlla la connessione e riprova."
+        : error?.code?.startsWith("auth/")
+          ? "Password non valida o accesso non disponibile."
+          : error instanceof Error
+            ? error.message
+            : "Non è stato possibile aprire i dati amministrativi.", "error");
+    if (!contentElement.hidden) {
+      contentElement.hidden = true;
+    } else {
+      loginForm.hidden = false;
+    }
+    signOutButton.hidden = !isAdminUser(firebaseAuth.currentUser);
+    loginButton.disabled = false;
+    passwordInput.focus();
+    if (error?.code?.startsWith("auth/")) passwordInput.select();
+  }
+});
 
 refreshButton.addEventListener("click", async () => {
   refreshButton.disabled = true;
@@ -237,9 +316,36 @@ refreshButton.addEventListener("click", async () => {
   }
 });
 
+signOutButton.addEventListener("click", async () => {
+  signOutButton.disabled = true;
+  try {
+    stopAdminListeners();
+    await sdk.signOut(firebaseAuth);
+    contentElement.hidden = true;
+    refreshButton.disabled = true;
+    signOutButton.hidden = true;
+    loginForm.hidden = false;
+    loginButton.disabled = false;
+    setStatus("Sei uscito dall'area amministratore.");
+    passwordInput.focus();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Non è stato possibile uscire.", "error");
+  } finally {
+    signOutButton.disabled = false;
+  }
+});
+
+passwordToggle.addEventListener("click", () => {
+  const showingPassword = passwordInput.type === "password";
+  passwordInput.type = showingPassword ? "text" : "password";
+  passwordToggle.textContent = showingPassword ? "Nascondi" : "Mostra";
+  passwordToggle.setAttribute("aria-label", showingPassword ? "Nascondi password" : "Mostra password");
+  passwordToggle.setAttribute("aria-pressed", String(showingPassword));
+  passwordInput.focus();
+});
+
 window.addEventListener("pagehide", () => {
-  profilesUnsubscribe?.();
-  peopleUnsubscribe?.();
+  stopAdminListeners();
 });
 
 void initializeAdmin();

@@ -3,24 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#fff8e9" />
+    <meta name="theme-color" content="#f3efe6" />
     <title>Amministrazione - La sfida della serata</title>
-    <link rel="stylesheet" href="admin.css?v=public-firestore" />
+    <link rel="stylesheet" href="admin.css?v=admin-password" />
   </head>
   <body>
     <main class="admin-page">
       <header class="admin-header">
-        <div>
-          <a class="back-link" href="./">← Torna alla sfida</a>
-          <p class="eyebrow">Gestione dati pubblica</p>
+        <a class="back-link" href="./">← Torna alla sfida</a>
+        <div class="admin-heading">
+          <p class="eyebrow">Area riservata</p>
           <h1>Gestione della sfida</h1>
-          <p class="intro">Da qui puoi vedere e cancellare i profili e gli approcci.</p>
+          <p class="intro">Profili e diario della serata, in un unico posto.</p>
         </div>
-        <button id="refresh-button" class="secondary-button" type="button" disabled>Aggiorna elenco</button>
+        <div class="header-actions">
+          <button id="refresh-button" class="secondary-button" type="button" disabled>Aggiorna</button>
+          <button id="admin-signout-button" class="secondary-button signout-button" type="button" hidden>Esci</button>
+        </div>
       </header>
 
-      <p class="status" data-kind="error">Attenzione: questa pagina e il database non richiedono login. Chiunque può leggere, modificare o cancellare questi dati.</p>
-      <p id="admin-status" class="status" role="status" aria-live="polite">Connessione a Firestore…</p>
+      <form id="admin-login-form" class="login-card" hidden>
+        <div class="login-mark" aria-hidden="true">S</div>
+        <p class="eyebrow">Accesso Emanuele</p>
+        <h2>Entra nell’area admin</h2>
+        <p class="login-copy">Inserisci la password amministratore per gestire profili e approcci.</p>
+        <label class="password-label" for="admin-password">Password</label>
+        <div class="password-field">
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+          <button id="toggle-password" class="password-toggle" type="button" aria-label="Mostra password" aria-pressed="false">Mostra</button>
+        </div>
+        <button id="admin-login-button" class="login-button" type="submit">Accedi <span aria-hidden="true">→</span></button>
+        <p class="login-footnote">Accesso verificato da Firebase Authentication.</p>
+      </form>
+
+      <p id="admin-status" class="status" role="status" aria-live="polite">Connessione a Firebase…</p>
       <section id="admin-content" hidden>
         <div class="summary">
           <article class="summary-card">
@@ -30,6 +46,10 @@
           <article class="summary-card">
             <span>Approcci</span>
             <strong id="people-count">0</strong>
+          </article>
+          <article class="summary-card admin-id-card">
+            <span>Accesso come</span>
+            <strong id="admin-uid">Emanuele</strong>
           </article>
         </div>
 
@@ -56,6 +76,7 @@
     </main>
 
     <script src="firebase-config.js"></script>
-    <script type="module" src="admin.js?v=public-firestore"></script>
+    <script src="firebase-admin.js?v=admin-password"></script>
+    <script type="module" src="admin.js?v=admin-password"></script>
   </body>
 </html>

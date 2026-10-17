@@ -161,7 +161,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" &&
     (pathname === "/script.js" || pathname === "/style.css" ||
       pathname === "/firebase-config.js" || pathname === "/admin.js" ||
-      pathname === "/admin.css" || pathname === "/admin.html")) {
+      pathname === "/firebase-admin.js" || pathname === "/admin.css" ||
+      pathname === "/admin.html")) {
     const filePath = path.join(rootDir, pathname.slice(1));
     fs.readFile(filePath, (error, content) => {
       if (error) {

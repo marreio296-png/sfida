@@ -49,6 +49,7 @@ let raceRoster = [];
 let raceProgress = {};
 let sharedGroupChannel = null;
 let firebaseApp = null;
+let firebaseAuth = null;
 let firebaseDatabase = null;
 let firebaseSdk = null;
 let firebaseProfilesUnsubscribe = null;
@@ -63,24 +64,42 @@ function hasFirebaseConfig() {
     typeof config.appId === "string" && config.appId);
 }
 
+function isFirebaseAdmin() {
+  return Boolean(firebaseAuth?.currentUser &&
+    window.isFirebaseAdminUser?.(firebaseAuth.currentUser));
+}
+
 function canDeleteRecords() {
   return window.location.protocol === "file:" ||
-    Boolean(firebaseDatabase);
+    Boolean(firebaseDatabase && isFirebaseAdmin());
 }
 
 function canEditPerson(person) {
-  return Boolean(activeProfile?.id && person.profileId === activeProfile.id);
+  return firebaseDatabase
+    ? Boolean(firebaseAuth?.currentUser?.uid &&
+      person.ownerUid === firebaseAuth.currentUser.uid)
+    : Boolean(activeProfile?.id && person.profileId === activeProfile.id);
 }
 
 async function initializeFirebase() {
   const config = window.firebaseConfig;
-  const [appSdk, firestoreSdk] = await Promise.all([
+  const [appSdk, authSdk, firestoreSdk] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
   ]);
-  firebaseSdk = firestoreSdk;
+  firebaseSdk = { ...authSdk, ...firestoreSdk };
   firebaseApp = appSdk.initializeApp(config);
+  firebaseAuth = authSdk.getAuth(firebaseApp);
   firebaseDatabase = firestoreSdk.getFirestore(firebaseApp);
+  await firebaseAuth.authStateReady();
+  if (!firebaseAuth.currentUser) {
+    await authSdk.signInAnonymously(firebaseAuth);
+  }
+  const identity = await firebaseAuth.currentUser.getIdTokenResult();
+  if (identity.signInProvider !== "anonymous" && !isFirebaseAdmin()) {
+    throw new Error("La sfida richiede l'autenticazione anonima Firebase.");
+  }
 }
 
 function loadProfiles() {
@@ -161,6 +180,9 @@ async function saveRemoteProfile(profile) {
 async function deleteRemoteProfile(profileId) {
   if (window.location.protocol === "file:") return null;
   if (firebaseDatabase) {
+    if (!isFirebaseAdmin()) {
+      throw new Error("Solo l'amministratore può eliminare utenti.");
+    }
     const linkedPeople = await firebaseSdk.getDocs(
       firebaseSdk.query(
         firebaseSdk.collection(firebaseDatabase, "people"),
@@ -290,6 +312,9 @@ async function persistGroupToServer(sharedState, deletedIds) {
 
     for (const [personId, personSnapshot] of peopleById) {
       if (!nextPeopleById.has(personId)) {
+        if (!isFirebaseAdmin()) {
+          throw new Error("Solo l'amministratore può eliminare gli approcci registrati.");
+        }
         batch.delete(personSnapshot.ref);
         writes += 1;
       }
@@ -310,6 +335,9 @@ async function persistGroupToServer(sharedState, deletedIds) {
           JSON.stringify(existingPerson[field]) === JSON.stringify(person[field])
         );
       if (!unchanged) {
+        if (!canEditPerson(existingPerson)) {
+          throw new Error("Puoi modificare solo gli approcci che hai aggiunto.");
+        }
         batch.set(
           firebaseSdk.doc(firebaseDatabase, "people", String(person.id)),
           person,
@@ -430,13 +458,13 @@ function updateAccessFields() {
 
 function populateProfileSelects() {
   savedProfileSelect.replaceChildren();
-  const selectableProfiles = profiles;
+  const selectableProfiles = firebaseDatabase && !isFirebaseAdmin()
+    ? profiles.filter((profile) => profile.ownerUid === firebaseAuth.currentUser.uid)
+    : profiles;
 
   const emptyLoginOption = document.createElement("option");
   emptyLoginOption.value = "";
-  emptyLoginOption.textContent = selectableProfiles.length
-    ? "Scegli il tuo profilo"
-    : "Scegli il tuo profilo";
+  emptyLoginOption.textContent = "Scegli il tuo profilo";
   savedProfileSelect.append(emptyLoginOption);
 
   for (const profile of selectableProfiles) {
@@ -447,10 +475,12 @@ function populateProfileSelects() {
   }
 
   savedProfileSelect.disabled = selectableProfiles.length === 0;
-  deleteProfileButton.hidden = false;
+  deleteProfileButton.hidden = Boolean(firebaseDatabase && !isFirebaseAdmin());
   deleteProfileButton.disabled = selectableProfiles.length === 0 || !savedProfileSelect.value ||
     !canDeleteRecords();
-  deleteProfileButton.title = "";
+  deleteProfileButton.title = canDeleteRecords()
+    ? ""
+    : "L'eliminazione è riservata all'amministratore.";
 }
 
 function removeProfileDataFromLocalGroup(profileId) {
@@ -624,7 +654,7 @@ function createParticipantCard(person) {
   const canRemove = canDeleteRecords();
   removeButton.disabled = raceRunning || !canRemove;
   if (!canRemove) {
-    removeButton.title = "L'eliminazione non è disponibile in questa modalità.";
+    removeButton.title = "L'eliminazione è riservata all'amministratore.";
   }
   removeButton.addEventListener("click", async () => {
     try {
@@ -1006,6 +1036,11 @@ async function refreshRemoteState() {
 }
 
 async function enterProfile(profile) {
+  if (firebaseDatabase && !isFirebaseAdmin() &&
+    profile.ownerUid !== firebaseAuth.currentUser.uid) {
+    accessMessage.textContent = "Puoi accedere solo ai profili creati dal tuo browser.";
+    return;
+  }
   let savedGroup;
   try {
     savedGroup = await loadGroupFromServer();
@@ -1197,13 +1232,13 @@ async function initializeApp() {
   try {
     if (hasFirebaseConfig()) {
       await initializeFirebase();
-      adminDashboardLink.hidden = false;
+      adminDashboardLink.hidden = !isFirebaseAdmin();
       profiles = loadProfiles();
       populateProfileSelects();
       startFirebaseListeners();
       return;
     } else if (window.location.hostname.endsWith(".github.io")) {
-      throw new Error("Firebase non è ancora configurato. Completa la configurazione di firebase-config.js e attiva Firestore.");
+      throw new Error("Firebase non è ancora configurato. Completa firebase-config.js e attiva Authentication anonima e Firestore.");
     }
 
     profiles = loadProfiles();
@@ -1273,6 +1308,7 @@ accessForm.addEventListener("submit", async (event) => {
       id: crypto.randomUUID(),
       name,
       photo,
+      ...(firebaseDatabase ? { ownerUid: firebaseAuth.currentUser.uid } : {}),
     };
     const savedProfile = await saveRemoteProfile(profile);
     const profileToAdd = savedProfile || profile;
@@ -1302,6 +1338,10 @@ deleteProfileButton.addEventListener("click", async () => {
   const profile = profiles.find((savedProfile) => savedProfile.id === savedProfileSelect.value);
   if (!profile) {
     accessMessage.textContent = "Seleziona il profilo da eliminare.";
+    return;
+  }
+  if (firebaseDatabase && !isFirebaseAdmin()) {
+    accessMessage.textContent = "Solo l'amministratore può eliminare utenti.";
     return;
   }
   if (!canDeleteRecords()) {
@@ -1383,6 +1423,9 @@ form.addEventListener("submit", async (event) => {
     id: editingPerson?.id || (window.location.protocol === "file:" ? nextId : crypto.randomUUID()),
     name: personName,
     profileId: editingPerson?.profileId || activeProfile.id,
+    ...(firebaseDatabase
+      ? { ownerUid: editingPerson?.ownerUid || firebaseAuth.currentUser.uid }
+      : {}),
     hairColor: form.elements.hairColor.value.trim(),
     age: form.elements.age.value,
     rating: 0,
