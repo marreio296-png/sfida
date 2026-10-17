@@ -13,8 +13,8 @@
         <span class="eyebrow">La sfida della serata</span>
         <h1>Com'è andata stasera?</h1>
         <p>Raccogliete gli aneddoti della serata e tenete d'occhio la classifica: ogni approccio riuscito fa avanzare il cavallo.</p>
-        <p class="field-hint access-storage-hint">Le modifiche si aggiornano in tempo reale per tutto il gruppo.</p>
-        <a id="admin-dashboard-link" class="admin-dashboard-link" href="admin.html" hidden>Apri area amministratore</a>
+        <p class="field-hint access-storage-hint">Profili e approcci sono salvati online e condivisi. Non inserire dati sensibili: chiunque può leggere, modificare o cancellare i dati.</p>
+        <a id="admin-dashboard-link" class="admin-dashboard-link" href="admin.html" hidden>Gestisci profili e approcci</a>
       </header>
 
       <section id="access-panel" class="panel access-panel" aria-labelledby="access-title">
@@ -44,7 +44,7 @@
               <select id="saved-profile" name="profileId"></select>
             </label>
             <button id="delete-profile" class="remove-button" type="button" disabled>Elimina il profilo selezionato</button>
-            <p class="field-hint">Solo l'amministratore può eliminare profili e approcci.</p>
+            <p class="field-hint">Le modifiche e le eliminazioni nel database non sono protette da un account.</p>
           </div>
 
           <div id="new-profile-fields" class="access-fields" hidden>
@@ -175,7 +175,6 @@
       </div>
     </main>
     <script src="firebase-config.js"></script>
-    <script src="firebase-admin.js"></script>
-    <script src="script.js" defer></script>
+    <script src="script.js?v=public-firestore" defer></script>
   </body>
 </html>

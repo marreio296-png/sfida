@@ -49,10 +49,8 @@ let raceRoster = [];
 let raceProgress = {};
 let sharedGroupChannel = null;
 let firebaseApp = null;
-let firebaseAuth = null;
 let firebaseDatabase = null;
 let firebaseSdk = null;
-let firebaseAdminUid = "";
 let firebaseProfilesUnsubscribe = null;
 let firebaseGroupUnsubscribe = null;
 let editingPersonId = "";
@@ -65,41 +63,24 @@ function hasFirebaseConfig() {
     typeof config.appId === "string" && config.appId);
 }
 
-function isFirebaseAdmin() {
-  return Boolean(firebaseAuth?.currentUser &&
-    window.isFirebaseAdminUser?.(firebaseAuth.currentUser));
-}
-
 function canDeleteRecords() {
   return window.location.protocol === "file:" ||
-    Boolean(firebaseDatabase && isFirebaseAdmin());
+    Boolean(firebaseDatabase);
 }
 
 function canEditPerson(person) {
-  return Boolean(firebaseDatabase && firebaseAuth?.currentUser?.uid &&
-    person.ownerUid === firebaseAuth.currentUser.uid);
+  return Boolean(activeProfile?.id && person.profileId === activeProfile.id);
 }
 
 async function initializeFirebase() {
   const config = window.firebaseConfig;
-  const [appSdk, authSdk, firestoreSdk] = await Promise.all([
+  const [appSdk, firestoreSdk] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
-    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
   ]);
-  firebaseSdk = { ...authSdk, ...firestoreSdk };
+  firebaseSdk = firestoreSdk;
   firebaseApp = appSdk.initializeApp(config);
-  firebaseAuth = authSdk.getAuth(firebaseApp);
   firebaseDatabase = firestoreSdk.getFirestore(firebaseApp);
-  await firebaseAuth.authStateReady();
-  if (!firebaseAuth.currentUser) {
-    await authSdk.signInAnonymously(firebaseAuth);
-  }
-  const identity = await firebaseAuth.currentUser.getIdTokenResult();
-  if (identity.signInProvider !== "anonymous" && !isFirebaseAdmin()) {
-    throw new Error("La sfida richiede l'autenticazione anonima Firebase.");
-  }
-  firebaseAdminUid = isFirebaseAdmin() ? firebaseAuth.currentUser.uid : "";
 }
 
 function loadProfiles() {
@@ -125,7 +106,10 @@ async function readRemoteJson(url) {
       const profileSnapshots = await firebaseSdk.getDocs(
         firebaseSdk.collection(firebaseDatabase, "profiles"),
       );
-      return profileSnapshots.docs.map((profileSnapshot) => profileSnapshot.data());
+      return profileSnapshots.docs.map((profileSnapshot) => ({
+        ...profileSnapshot.data(),
+        id: profileSnapshot.id,
+      }));
     }
     if (url === "/api/group") {
       const peopleSnapshot = await firebaseSdk.getDocs(
@@ -177,9 +161,6 @@ async function saveRemoteProfile(profile) {
 async function deleteRemoteProfile(profileId) {
   if (window.location.protocol === "file:") return null;
   if (firebaseDatabase) {
-    if (!isFirebaseAdmin()) {
-      throw new Error("Solo l'amministratore può eliminare utenti.");
-    }
     const linkedPeople = await firebaseSdk.getDocs(
       firebaseSdk.query(
         firebaseSdk.collection(firebaseDatabase, "people"),
@@ -204,7 +185,7 @@ async function deleteRemoteProfile(profileId) {
   });
   if (!response.ok) {
     throw new Error(response.status === 501
-      ? "L'eliminazione richiede Firebase configurato e le regole amministratore."
+      ? "L'eliminazione non è supportata dal backend locale."
       : response.status === 404
         ? "Il profilo è già stato eliminato. Aggiorna la pagina."
         : "Non è stato possibile eliminare il profilo dal backend.");
@@ -309,9 +290,6 @@ async function persistGroupToServer(sharedState, deletedIds) {
 
     for (const [personId, personSnapshot] of peopleById) {
       if (!nextPeopleById.has(personId)) {
-        if (!isFirebaseAdmin()) {
-          throw new Error("Solo l'amministratore può eliminare gli approcci registrati.");
-        }
         batch.delete(personSnapshot.ref);
         writes += 1;
       }
@@ -332,9 +310,6 @@ async function persistGroupToServer(sharedState, deletedIds) {
           JSON.stringify(existingPerson[field]) === JSON.stringify(person[field])
         );
       if (!unchanged) {
-        if (!canEditPerson(existingPerson)) {
-          throw new Error("Puoi modificare solo gli approcci che hai aggiunto.");
-        }
         batch.set(
           firebaseSdk.doc(firebaseDatabase, "people", String(person.id)),
           person,
@@ -354,7 +329,7 @@ async function persistGroupToServer(sharedState, deletedIds) {
   });
   if (!response.ok) {
     const errorMessage = response.status === 501
-      ? "L'eliminazione richiede Firebase configurato e le regole amministratore."
+      ? "Il backend locale non supporta l'eliminazione degli approcci."
       : response.status === 409
           ? "Il gruppo è cambiato da un altro dispositivo. Aggiorna la pagina."
           : response.status === 413
@@ -455,9 +430,7 @@ function updateAccessFields() {
 
 function populateProfileSelects() {
   savedProfileSelect.replaceChildren();
-  const selectableProfiles = firebaseDatabase && !isFirebaseAdmin()
-    ? profiles.filter((profile) => profile.ownerUid === firebaseAuth.currentUser.uid)
-    : profiles;
+  const selectableProfiles = profiles;
 
   const emptyLoginOption = document.createElement("option");
   emptyLoginOption.value = "";
@@ -474,12 +447,10 @@ function populateProfileSelects() {
   }
 
   savedProfileSelect.disabled = selectableProfiles.length === 0;
-  deleteProfileButton.hidden = Boolean(firebaseDatabase && !isFirebaseAdmin());
+  deleteProfileButton.hidden = false;
   deleteProfileButton.disabled = selectableProfiles.length === 0 || !savedProfileSelect.value ||
     !canDeleteRecords();
-  deleteProfileButton.title = canDeleteRecords()
-    ? ""
-    : "L'eliminazione richiede Firebase configurato e le regole amministratore.";
+  deleteProfileButton.title = "";
 }
 
 function removeProfileDataFromLocalGroup(profileId) {
@@ -653,7 +624,7 @@ function createParticipantCard(person) {
   const canRemove = canDeleteRecords();
   removeButton.disabled = raceRunning || !canRemove;
   if (!canRemove) {
-    removeButton.title = "L'eliminazione richiede Firebase configurato e le regole amministratore.";
+    removeButton.title = "L'eliminazione non è disponibile in questa modalità.";
   }
   removeButton.addEventListener("click", async () => {
     try {
@@ -1035,11 +1006,6 @@ async function refreshRemoteState() {
 }
 
 async function enterProfile(profile) {
-  if (firebaseDatabase && !isFirebaseAdmin() &&
-    profile.ownerUid !== firebaseAuth.currentUser.uid) {
-    accessMessage.textContent = "Puoi accedere solo ai profili creati dal tuo browser.";
-    return;
-  }
   let savedGroup;
   try {
     savedGroup = await loadGroupFromServer();
@@ -1231,13 +1197,13 @@ async function initializeApp() {
   try {
     if (hasFirebaseConfig()) {
       await initializeFirebase();
-      adminDashboardLink.hidden = !isFirebaseAdmin();
+      adminDashboardLink.hidden = false;
       profiles = loadProfiles();
       populateProfileSelects();
       startFirebaseListeners();
       return;
     } else if (window.location.hostname.endsWith(".github.io")) {
-      throw new Error("Firebase non è ancora configurato. Completa la configurazione di firebase-config.js e attiva Authentication anonima e Firestore.");
+      throw new Error("Firebase non è ancora configurato. Completa la configurazione di firebase-config.js e attiva Firestore.");
     }
 
     profiles = loadProfiles();
@@ -1307,7 +1273,6 @@ accessForm.addEventListener("submit", async (event) => {
       id: crypto.randomUUID(),
       name,
       photo,
-      ...(firebaseDatabase ? { ownerUid: firebaseAuth.currentUser.uid } : {}),
     };
     const savedProfile = await saveRemoteProfile(profile);
     const profileToAdd = savedProfile || profile;
@@ -1339,12 +1304,8 @@ deleteProfileButton.addEventListener("click", async () => {
     accessMessage.textContent = "Seleziona il profilo da eliminare.";
     return;
   }
-  if (firebaseDatabase && !isFirebaseAdmin()) {
-    accessMessage.textContent = "Solo l'amministratore può eliminare utenti.";
-    return;
-  }
   if (!canDeleteRecords()) {
-    accessMessage.textContent = "L'eliminazione richiede Firebase configurato e le regole amministratore.";
+    accessMessage.textContent = "L'eliminazione non è disponibile in questa modalità.";
     return;
   }
   if (!window.confirm(`Eliminare il profilo di ${profile.name}? Verranno cancellati anche i suoi approcci e punti. Questa azione non si può annullare.`)) {
@@ -1422,9 +1383,6 @@ form.addEventListener("submit", async (event) => {
     id: editingPerson?.id || (window.location.protocol === "file:" ? nextId : crypto.randomUUID()),
     name: personName,
     profileId: editingPerson?.profileId || activeProfile.id,
-    ...(firebaseDatabase
-      ? { ownerUid: editingPerson?.ownerUid || firebaseAuth.currentUser.uid }
-      : {}),
     hairColor: form.elements.hairColor.value.trim(),
     age: form.elements.age.value,
     rating: 0,

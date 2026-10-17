@@ -155,40 +155,6 @@ h2 {
   color: #28543a;
 }
 
-.admin-login {
-  display: grid;
-  grid-column: 1 / -1;
-  max-width: 420px;
-  gap: 10px;
-  padding: 18px;
-  border: 1px solid #b4b9a8;
-  border-radius: 2px;
-  background: var(--paper);
-}
-
-.admin-login[hidden] {
-  display: none;
-}
-
-.admin-login label {
-  color: var(--forest-dark);
-  font-weight: 750;
-}
-
-.admin-login input {
-  min-height: 44px;
-  padding: 9px 11px;
-  border: 1px solid #9da99a;
-  border-radius: 2px;
-  font: inherit;
-}
-
-.admin-login input:focus-visible,
-.admin-login button:focus-visible {
-  outline: 3px solid #bd654d;
-  outline-offset: 2px;
-}
-
 .summary {
   display: grid;
   grid-column: 1 / -1;

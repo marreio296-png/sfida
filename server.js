@@ -160,7 +160,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" &&
     (pathname === "/script.js" || pathname === "/style.css" ||
-      pathname === "/firebase-config.js" || pathname === "/firebase-admin.js" || pathname === "/admin.js" ||
+      pathname === "/firebase-config.js" || pathname === "/admin.js" ||
       pathname === "/admin.css" || pathname === "/admin.html")) {
     const filePath = path.join(rootDir, pathname.slice(1));
     fs.readFile(filePath, (error, content) => {
@@ -216,7 +216,7 @@ const server = http.createServer(async (req, res) => {
 
   const profilePathPrefix = "/api/profiles/";
   if (req.method === "DELETE" && pathname.startsWith(profilePathPrefix)) {
-    sendJson(res, 501, { error: "L'eliminazione richiede Firebase configurato e le regole amministratore." });
+    sendJson(res, 501, { error: "Il backend locale non supporta l'eliminazione dei profili." });
     return;
   }
 
@@ -236,7 +236,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         if (body.deleteIds?.length) {
-          sendJson(res, 501, { error: "L'eliminazione richiede Firebase configurato e le regole amministratore." });
+          sendJson(res, 501, { error: "Il backend locale non supporta l'eliminazione degli approcci." });
           return;
         }
         const store = readStore();

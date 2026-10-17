@@ -1,23 +1,18 @@
 const statusElement = document.querySelector("#admin-status");
 const contentElement = document.querySelector("#admin-content");
-const loginForm = document.querySelector("#admin-login-form");
-const passwordInput = document.querySelector("#admin-password");
 const refreshButton = document.querySelector("#refresh-button");
 const profileCount = document.querySelector("#profile-count");
 const peopleCount = document.querySelector("#people-count");
-const adminUidElement = document.querySelector("#admin-uid");
 const profilesList = document.querySelector("#profiles-list");
 const peopleList = document.querySelector("#people-list");
 
 let sdk;
 let database;
-let firebaseAuth;
 let profiles = [];
 let people = [];
 let profilesUnsubscribe;
 let peopleUnsubscribe;
 let requestPending = false;
-let firebaseAdminUid = "";
 
 function setStatus(message, kind = "") {
   statusElement.textContent = message;
@@ -81,7 +76,7 @@ function render() {
   } else {
     profilesList.append(...profiles.map((profile) => makeRecord({
       title: profile.name || "Profilo senza nome",
-      meta: `ID: ${profile.id}${profile.ownerUid ? ` · UID proprietario: ${profile.ownerUid}` : ""}`,
+      meta: `ID: ${profile.id}`,
       details: profile.photo ? "Foto profilo presente." : "",
       deleteLabel: `Elimina il profilo ${profile.name || profile.id} e i suoi approcci`,
       onDelete: () => void deleteProfile(profile),
@@ -109,7 +104,7 @@ function render() {
 
       return makeRecord({
         title: person.name || "Senza nome",
-        meta: `ID: ${person.id}${person.ownerUid ? ` · UID proprietario: ${person.ownerUid}` : ""}`,
+        meta: `ID: ${person.id}`,
         details,
         deleteLabel: `Elimina l'approccio ${person.name || person.id}`,
         onDelete: () => void deletePerson(person),
@@ -118,9 +113,9 @@ function render() {
   }
 }
 
-function requireAdmin() {
-  if (!window.isFirebaseAdminUser?.(firebaseAuth?.currentUser)) {
-    throw new Error("Accesso negato: questa pagina è riservata all'amministratore.");
+function requireDatabase() {
+  if (!database) {
+    throw new Error("Firestore non è inizializzato.");
   }
 }
 
@@ -133,7 +128,7 @@ async function deleteProfile(profile) {
   render();
   setStatus("Eliminazione del profilo e degli approcci collegati…");
   try {
-    requireAdmin();
+    requireDatabase();
     const linkedPeople = await sdk.getDocs(sdk.query(
       sdk.collection(database, "people"),
       sdk.where("profileId", "==", profile.id),
@@ -163,7 +158,7 @@ async function deletePerson(person) {
   render();
   setStatus("Eliminazione dell'approccio…");
   try {
-    requireAdmin();
+    requireDatabase();
     await sdk.deleteDoc(sdk.doc(database, "people", String(person.id)));
     setStatus(`Approccio ${person.name || person.id} eliminato.`, "success");
   } catch (error) {
@@ -176,7 +171,7 @@ async function deletePerson(person) {
 }
 
 async function refreshData() {
-  requireAdmin();
+  requireDatabase();
   const [profileSnapshots, peopleSnapshots] = await Promise.all([
     sdk.getDocs(sdk.collection(database, "profiles")),
     sdk.getDocs(sdk.collection(database, "people")),
@@ -187,12 +182,6 @@ async function refreshData() {
 }
 
 async function showAdminArea() {
-  if (!window.isFirebaseAdminUser?.(firebaseAuth?.currentUser)) {
-    throw new Error("Password non valida.");
-  }
-  firebaseAdminUid = firebaseAuth.currentUser.uid;
-  adminUidElement.textContent = "Emanuele";
-  loginForm.hidden = true;
   contentElement.hidden = false;
   refreshButton.disabled = false;
   await refreshData();
@@ -212,7 +201,7 @@ async function showAdminArea() {
     },
     (error) => setStatus(`Non è stato possibile aggiornare gli approcci: ${error.message}`, "error"),
   );
-  setStatus("Accesso amministratore verificato. Dati aggiornati in tempo reale.", "success");
+  setStatus("Dati aggiornati. Le operazioni su questo database non sono protette da login.", "error");
 }
 
 async function initializeAdmin() {
@@ -220,50 +209,21 @@ async function initializeAdmin() {
     if (!window.firebaseConfig?.apiKey || !window.firebaseConfig?.projectId) {
       throw new Error("Configurazione Firebase mancante in firebase-config.js.");
     }
-    setStatus("Connessione a Firebase e verifica dell'identità…");
-    const [appSdk, authSdk, firestoreSdk] = await Promise.all([
+    setStatus("Connessione a Firestore…");
+    const [appSdk, firestoreSdk] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
       import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
     ]);
-    sdk = { ...authSdk, ...firestoreSdk };
+    sdk = firestoreSdk;
     const app = appSdk.initializeApp(window.firebaseConfig);
-    firebaseAuth = authSdk.getAuth(app);
     database = firestoreSdk.getFirestore(app);
-    await firebaseAuth.authStateReady();
-    if (window.isFirebaseAdminUser?.(firebaseAuth.currentUser)) {
-      await showAdminArea();
-    } else {
-      loginForm.hidden = false;
-      setStatus("Inserisci la password per accedere all'area admin.");
-    }
+    await showAdminArea();
   } catch (error) {
     contentElement.hidden = true;
     refreshButton.disabled = true;
-    loginForm.hidden = false;
     setStatus(error instanceof Error ? error.message : "Impossibile inizializzare l'area admin.", "error");
   }
 }
-
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  refreshButton.disabled = true;
-  setStatus("Verifica password…");
-  try {
-    await sdk.signInWithEmailAndPassword(
-      firebaseAuth,
-      window.firebaseAdminEmail,
-      passwordInput.value,
-    );
-    passwordInput.value = "";
-    await showAdminArea();
-  } catch (error) {
-    setStatus(error?.code === "auth/operation-not-allowed"
-      ? "L'accesso con password non è ancora attivo in Firebase."
-      : "Password non valida o accesso non disponibile.", "error");
-    refreshButton.disabled = true;
-  }
-});
 
 refreshButton.addEventListener("click", async () => {
   refreshButton.disabled = true;
