@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3efe6" />
     <title>Amministrazione - La sfida della serata</title>
-    <link rel="stylesheet" href="admin.css?v=admin-password" />
+    <link rel="stylesheet" href="admin.css?v=admin-email-reset" />
   </head>
   <body>
     <main class="admin-page">
@@ -33,6 +33,7 @@
           <button id="toggle-password" class="password-toggle" type="button" aria-label="Mostra password" aria-pressed="false">Mostra</button>
         </div>
         <button id="admin-login-button" class="login-button" type="submit">Accedi <span aria-hidden="true">→</span></button>
+        <button id="admin-reset-password" class="password-reset-button" type="button">Imposta o reimposta la password</button>
         <p class="login-footnote">Accesso verificato da Firebase Authentication.</p>
       </form>
 
@@ -76,7 +77,7 @@
     </main>
 
     <script src="firebase-config.js"></script>
-    <script src="firebase-admin.js?v=admin-password"></script>
-    <script type="module" src="admin.js?v=admin-password"></script>
+    <script src="firebase-admin.js?v=admin-email-reset"></script>
+    <script type="module" src="admin.js?v=admin-email-reset"></script>
   </body>
 </html>

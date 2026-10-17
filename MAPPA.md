@@ -52,6 +52,6 @@ flowchart LR
 
 ## Accessi e autorizzazioni
 
-I partecipanti accedono con Firebase Authentication anonima. Profili e approcci memorizzano `ownerUid`; le regole permettono a ciascun partecipante di creare e modificare soltanto i propri documenti. Gli utenti autenticati possono leggere i dati condivisi necessari alla classifica. Le cancellazioni sono riservate all'account password `emanuele.admin@sfida-554ff.firebaseapp.com`.
+I partecipanti accedono con Firebase Authentication anonima. Profili e approcci memorizzano `ownerUid`; le regole permettono a ciascun partecipante di creare e modificare soltanto i propri documenti. Gli utenti autenticati possono leggere i dati condivisi necessari alla classifica. Le cancellazioni sono riservate all'account password `marreio296@gmail.com`.
 
 Le foto sono salvate nei documenti profilo come stringhe data URL; non è configurato Firebase Storage. La password non è presente nei file del progetto. Pubblicare `firestore.rules` sul repository non aggiorna le regole attive: vanno pubblicate anche dalla Console Firebase.

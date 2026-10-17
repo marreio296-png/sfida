@@ -3,6 +3,7 @@ const contentElement = document.querySelector("#admin-content");
 const loginForm = document.querySelector("#admin-login-form");
 const passwordInput = document.querySelector("#admin-password");
 const loginButton = document.querySelector("#admin-login-button");
+const resetPasswordButton = document.querySelector("#admin-reset-password");
 const passwordToggle = document.querySelector("#toggle-password");
 const refreshButton = document.querySelector("#refresh-button");
 const signOutButton = document.querySelector("#admin-signout-button");
@@ -301,6 +302,27 @@ loginForm.addEventListener("submit", async (event) => {
     loginButton.disabled = false;
     passwordInput.focus();
     if (error?.code?.startsWith("auth/")) passwordInput.select();
+  }
+});
+
+resetPasswordButton.addEventListener("click", async () => {
+  if (!firebaseAuth || !sdk) {
+    setStatus("Firebase non è pronto. Ricarica la pagina.", "error");
+    return;
+  }
+  resetPasswordButton.disabled = true;
+  setStatus("Invio del link per impostare la password…");
+  try {
+    await sdk.sendPasswordResetEmail(firebaseAuth, window.firebaseAdminEmail);
+    setStatus("Se l'account esiste, Firebase ha inviato il link all'indirizzo amministratore. Controlla anche la cartella spam.", "success");
+  } catch (error) {
+    setStatus(error?.code === "auth/network-request-failed"
+      ? "Firebase non è raggiungibile. Controlla la connessione e riprova."
+      : error?.code === "auth/unauthorized-continue-uri"
+        ? "Il dominio del sito non è autorizzato in Firebase Authentication."
+        : "Non è stato possibile inviare il link. Verifica la configurazione Firebase e riprova.", "error");
+  } finally {
+    resetPasswordButton.disabled = false;
   }
 });
 

@@ -6,7 +6,7 @@ Per una mappa dei flussi, dei file e delle raccolte, consulta [MAPPA.md](./MAPPA
 
 ## Dati e accesso
 
-Il sito usa Firebase Authentication con accesso anonimo per i partecipanti e password per l'account amministratore `emanuele.admin@sfida-554ff.firebaseapp.com`. Non inserire la password nel codice o in questo repository.
+Il sito usa Firebase Authentication con accesso anonimo per i partecipanti e password per l'account amministratore `marreio296@gmail.com`. L'area admin può inviare a questa casella il link Firebase per impostare o reimpostare la password. Non inserire la password nel codice o in questo repository.
 
 I partecipanti possono leggere i documenti condivisi, creare il proprio profilo e aggiungere o modificare i propri approcci. Soltanto l'account amministratore può cancellare profili e approcci. Le autorizzazioni sono applicate dalle regole Firestore, non soltanto dall'interfaccia.
 
@@ -17,7 +17,7 @@ I profili esistenti senza `ownerUid` non possono essere assegnati automaticament
 1. Crea o seleziona un progetto Firebase e attiva Cloud Firestore.
 2. In `firebase-config.js`, inserisci la configurazione dell'app Web. Questi identificativi sono pubblici e non sono password o chiavi di servizio.
 3. In **Authentication → Sign-in method**, abilita i provider **Anonimo** ed **Email/password**.
-4. Crea o verifica l'utente amministratore `emanuele.admin@sfida-554ff.firebaseapp.com`. La password si imposta o reimposta dalla Console Firebase e non va salvata nei file del progetto.
+4. Crea o verifica l'utente amministratore `marreio296@gmail.com`. Dalla pagina `admin.html` si può inviare a questa casella il link per impostare o reimpostare la password; non va salvata nei file del progetto.
 5. In **Authentication → Settings → Authorized domains**, aggiungi il dominio GitHub Pages effettivamente usato dal sito.
 6. Copia il contenuto di `firestore.rules` nella scheda **Regole** di Firestore e pubblicalo. Questa operazione va fatta nella console Firebase; pubblicare il file su GitHub non aggiorna automaticamente le regole del progetto.
 

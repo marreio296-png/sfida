@@ -1,5 +1,5 @@
 (() => {
-  const adminEmail = "emanuele.admin@sfida-554ff.firebaseapp.com";
+  const adminEmail = "marreio296@gmail.com";
   window.firebaseAdminEmail = adminEmail;
   window.isFirebaseAdminUser = (user) => Boolean(
     user?.email === adminEmail &&
