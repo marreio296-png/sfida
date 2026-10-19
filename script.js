@@ -458,9 +458,7 @@ function updateAccessFields() {
 
 function populateProfileSelects() {
   savedProfileSelect.replaceChildren();
-  const selectableProfiles = firebaseDatabase && !isFirebaseAdmin()
-    ? profiles.filter((profile) => profile.ownerUid === firebaseAuth.currentUser.uid)
-    : profiles;
+  const selectableProfiles = profiles;
 
   const emptyLoginOption = document.createElement("option");
   emptyLoginOption.value = "";
@@ -1036,11 +1034,6 @@ async function refreshRemoteState() {
 }
 
 async function enterProfile(profile) {
-  if (firebaseDatabase && !isFirebaseAdmin() &&
-    profile.ownerUid !== firebaseAuth.currentUser.uid) {
-    accessMessage.textContent = "Puoi accedere solo ai profili creati dal tuo browser.";
-    return;
-  }
   let savedGroup;
   try {
     savedGroup = await loadGroupFromServer();

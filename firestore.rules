@@ -11,11 +11,9 @@ service cloud.firestore {
         request.auth.token.firebase.sign_in_provider == 'password';
     }
 
-    function ownsProfile(profileId) {
+    function profileExists(profileId) {
       let profilePath = /databases/$(database)/documents/profiles/$(profileId);
-      return signedIn() &&
-        exists(profilePath) &&
-        get(profilePath).data.ownerUid == request.auth.uid;
+      return signedIn() && exists(profilePath);
     }
 
     function validProfile(profileId) {
@@ -68,7 +66,7 @@ service cloud.firestore {
         validRating(request.resource.data, 'finalRating') &&
         validOptionalList(request.resource.data, 'evaluations', 30) &&
         validOptionalList(request.resource.data, 'details', 30) &&
-        (ownsProfile(request.resource.data.profileId) || isAdmin());
+        (profileExists(request.resource.data.profileId) || isAdmin());
     }
 
     match /settings/{settingId} {

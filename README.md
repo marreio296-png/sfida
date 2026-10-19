@@ -8,9 +8,9 @@ Per una mappa dei flussi, dei file e delle raccolte, consulta [MAPPA.md](./MAPPA
 
 Il sito usa Firebase Authentication con accesso anonimo per i partecipanti e password per l'account amministratore `marreio296@gmail.com`. L'area admin può inviare a questa casella il link Firebase per impostare o reimpostare la password. Non inserire la password nel codice o in questo repository.
 
-I partecipanti possono leggere i documenti condivisi, creare il proprio profilo e aggiungere o modificare i propri approcci. Soltanto l'account amministratore può cancellare profili e approcci. Le autorizzazioni sono applicate dalle regole Firestore, non soltanto dall'interfaccia.
+I partecipanti possono leggere tutti i profili condivisi e scegliere un profilo da qualsiasi browser. Il browser ricorda l'ultimo profilo scelto e lo riapre automaticamente agli accessi successivi; su un browser nuovo basta selezionarlo una volta. Senza PIN o credenziali, però, non è possibile verificare l'identità di chi seleziona un profilo: chiunque può usare qualsiasi profilo e registrare approcci a suo nome. Ogni partecipante può modificare i propri approcci, mentre soltanto l'amministratore può cancellare profili e approcci. Le autorizzazioni sono applicate dalle regole Firestore, non soltanto dall'interfaccia.
 
-I profili esistenti senza `ownerUid` non possono essere assegnati automaticamente a un account anonimo. Dopo l'attivazione delle nuove regole, i partecipanti dovranno ricreare quei profili; gli approcci già presenti restano leggibili e possono essere rimossi dall'amministratore.
+I profili esistenti senza `ownerUid` restano visibili e selezionabili, ma non possono essere modificati dai partecipanti; gli approcci già presenti restano leggibili e possono essere rimossi dall'amministratore.
 
 ## Configurare Firestore
 
@@ -21,7 +21,7 @@ I profili esistenti senza `ownerUid` non possono essere assegnati automaticament
 5. In **Authentication → Settings → Authorized domains**, aggiungi il dominio GitHub Pages effettivamente usato dal sito.
 6. Copia il contenuto di `firestore.rules` nella scheda **Regole** di Firestore e pubblicalo. Questa operazione va fatta nella console Firebase; pubblicare il file su GitHub non aggiorna automaticamente le regole del progetto.
 
-Le regole permettono la lettura a utenti autenticati, vincolano creazione e modifica all'UID proprietario e riservano le cancellazioni all'email amministrativa configurata. `settings` e le altre raccolte non sono autorizzate. Non creare altri account con provider Email/password: gli utenti anonimi dei partecipanti sono creati automaticamente.
+Le regole permettono agli utenti autenticati di leggere i documenti condivisi e aggiungere approcci a qualsiasi profilo esistente; ogni utente può modificare solo gli approcci creati dal proprio UID. La creazione dei profili resta associata all'UID che li ha creati e le cancellazioni sono riservate all'email amministrativa configurata. `settings` e le altre raccolte non sono autorizzate. Non creare altri account con provider Email/password: gli utenti anonimi dei partecipanti sono creati automaticamente.
 
 ## Pubblicare con GitHub Pages
 

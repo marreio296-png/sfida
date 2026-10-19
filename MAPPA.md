@@ -12,7 +12,7 @@ flowchart LR
     app["Firebase JavaScript SDK: App + Auth + Firestore"]
     profiles["Firestore: profiles/{id}<br/>nome + foto + ownerUid"]
     people["Firestore: people/{id}<br/>approcci + ownerUid"]
-    rules["firestore.rules<br/>proprietario + admin"]
+    rules["firestore.rules<br/>profili condivisi + admin"]
     pages["GitHub Pages<br/>file statici"]
     node["server.js (opzionale)<br/>API locali legacy"]
     json["data/store.json"]
@@ -52,7 +52,7 @@ flowchart LR
 
 ## Accessi e autorizzazioni
 
-I partecipanti accedono con Firebase Authentication anonima. Profili e approcci memorizzano `ownerUid`; le regole permettono a ciascun partecipante di creare e modificare soltanto i propri documenti. Gli utenti autenticati possono leggere i dati condivisi necessari alla classifica. Le cancellazioni sono riservate all'account password `marreio296@gmail.com`.
+I partecipanti accedono con Firebase Authentication anonima. Tutti gli utenti autenticati possono vedere e selezionare i profili condivisi; il browser ricorda localmente l'ultimo profilo scelto e lo riapre automaticamente. Senza PIN o credenziali, chiunque può selezionare qualsiasi profilo. Gli approcci registrano l'UID di chi li ha creati, così ogni partecipante può modificare solo i propri; le cancellazioni sono riservate all'account password `marreio296@gmail.com`.
 
 Le foto sono salvate nei documenti profilo come stringhe data URL; non è configurato Firebase Storage. La password non è presente nei file del progetto. Pubblicare `firestore.rules` sul repository non aggiorna le regole attive: vanno pubblicate anche dalla Console Firebase.
 
